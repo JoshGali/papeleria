@@ -4,9 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import LOW_STOCK_THRESHOLD_MAX, LOW_STOCK_THRESHOLD_MIN
-from helpers import create_product, create_product_with_stock
+from helpers import PRODUCT_FIELDS, create_product, create_product_with_stock
 
-RESPONSE_FIELDS = {"product_id", "name", "description", "price", "stock"}
 
 
 def test_productos_con_stock_disponible(client: TestClient) -> None:
@@ -110,7 +109,7 @@ def test_los_filtros_comparten_el_formato_del_listado_completo(
 
     for coleccion in (completo, disponibles, bajos):
         assert isinstance(coleccion, list)
-        assert all(set(item) == RESPONSE_FIELDS for item in coleccion)
+        assert all(set(item) == PRODUCT_FIELDS for item in coleccion)
     assert completo == disponibles == bajos
 
 

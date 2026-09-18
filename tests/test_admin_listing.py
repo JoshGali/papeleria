@@ -10,9 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.store.memory_store import InMemoryStore
-from helpers import create_product, create_product_with_stock, use_store
+from helpers import (
+    PRODUCT_FIELDS,
+    create_product,
+    create_product_with_stock,
+    use_store,
+)
 
-RESPONSE_FIELDS = {"product_id", "name", "description", "price", "stock"}
 
 
 def test_por_defecto_se_mantiene_el_filtro_del_requerimiento(
@@ -75,7 +79,7 @@ def test_el_formato_de_la_respuesta_no_cambia(client: TestClient) -> None:
 
     response = client.get("/products", params={"include_unavailable": "true"})
 
-    assert all(set(item) == RESPONSE_FIELDS for item in response.json())
+    assert all(set(item) == PRODUCT_FIELDS for item in response.json())
 
 
 def test_un_valor_no_booleano_responde_400(client: TestClient) -> None:

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventario - Papeleria</title>
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>&#128221;</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__mark" aria-hidden="true">&#128221;</span>
+    <div>
+      <h1>Inventario</h1>
+      <p class="topbar__sub">Papeleria</p>
+    </div>
+  </div>
+  <div class="topbar__right">
+    <span id="estado-conexion" class="pill pill--muted">Conectando...</span>
+    <a class="link" href="/docs" target="_blank" rel="noopener">API</a>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab is-active" role="tab" data-tab="inventario" aria-selected="true">Inventario</button>
+  <button class="tab" role="tab" data-tab="movimientos" aria-selected="false">Movimientos</button>
+</nav>
+
+<main>
+  <!-- ------------------------------ Inventario ------------------------------ -->
+  <section id="panel-inventario" class="panel" role="tabpanel">
+    <div class="kpis">
+      <article class="kpi"><span class="kpi__label">Productos</span><strong id="kpi-total" class="kpi__value">0</strong></article>
+      <article class="kpi"><span class="kpi__label">Con existencias</span><strong id="kpi-disponibles" class="kpi__value">0</strong></article>
+      <article class="kpi kpi--warn"><span class="kpi__label">Stock bajo</span><strong id="kpi-bajos" class="kpi__value">0</strong></article>
+      <article class="kpi kpi--danger"><span class="kpi__label">Agotados</span><strong id="kpi-agotados" class="kpi__value">0</strong></article>
+      <article class="kpi"><span class="kpi__label">Valor del inventario</span><strong id="kpi-valor" class="kpi__value">0</strong></article>
+    </div>
+
+    <div class="toolbar">
+      <div class="field field--grow">
+        <label class="sr-only" for="buscador">Buscar</label>
+        <input id="buscador" type="search" placeholder="Buscar por nombre, descripcion o identificador..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="sr-only" for="filtro-estado">Estado</label>
+        <select id="filtro-estado">
+          <option value="todos">Todos los productos</option>
+          <option value="disponibles">Con existencias</option>
+          <option value="bajos">Stock bajo</option>
+          <option value="agotados">Agotados</option>
+          <option value="sin-precio">Sin precio</option>
+        </select>
+      </div>
+      <div class="field field--umbral">
+        <label for="umbral">Umbral</label>
+        <input id="umbral" type="number" min="1" max="10000" value="10">
+      </div>
+      <button id="btn-nuevo" class="btn btn--primary">Nuevo producto</button>
+    </div>
+
+    <p id="resumen-filtro" class="muted"></p>
+
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="name">Producto</th>
+            <th class="sortable num" data-sort="price">Precio</th>
+            <th class="sortable num" data-sort="stock">Stock</th>
+            <th class="sortable" data-sort="updated_at">Actualizado</th>
+            <th class="acciones-col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-productos"></tbody>
+      </table>
+      <p id="vacio-productos" class="vacio" hidden></p>
+    </div>
+  </section>
+
+  <!-- ------------------------------ Movimientos ----------------------------- -->
+  <section id="panel-movimientos" class="panel" role="tabpanel" hidden>
+    <div class="toolbar">
+      <div class="field field--grow">
+        <label class="sr-only" for="buscador-mov">Buscar movimiento</label>
+        <input id="buscador-mov" type="search" placeholder="Buscar por producto..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="sr-only" for="filtro-tipo">Tipo</label>
+        <select id="filtro-tipo">
+          <option value="todos">Entradas y salidas</option>
+          <option value="entry">Solo entradas</option>
+          <option value="exit">Solo salidas</option>
+        </select>
+      </div>
+      <button id="btn-refrescar-mov" class="btn">Actualizar</button>
+    </div>
+
+    <p id="resumen-mov" class="muted"></p>
+
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Producto</th>
+            <th>Movimiento</th>
+            <th class="num">Cantidad</th>
+            <th class="num">Stock resultante</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-movimientos"></tbody>
+      </table>
+      <p id="vacio-movimientos" class="vacio" hidden></p>
+    </div>
+  </section>
+</main>
+
+<!-- ------------------------------- Modales -------------------------------- -->
+<dialog id="modal-producto" class="modal">
+  <form id="form-producto" method="dialog">
+    <h2 id="titulo-producto">Nuevo producto</h2>
+
+    <div class="campo">
+      <label for="p-nombre">Nombre <span class="req">*</span></label>
+      <input id="p-nombre" name="name" maxlength="200" required>
+    </div>
+
+    <div class="campo">
+      <label for="p-descripcion">Descripcion <span class="req">*</span></label>
+      <textarea id="p-descripcion" name="description" maxlength="500" rows="3" required></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label for="p-precio">Precio <span class="req">*</span></label>
+        <input id="p-precio" name="price" type="number" min="0" step="0.01" required>
+      </div>
+      <div class="campo" id="campo-stock-inicial">
+        <label for="p-stock">Stock inicial</label>
+        <input id="p-stock" name="stock" type="number" min="0" max="999999" value="0">
+      </div>
+    </div>
+
+    <p class="nota" id="nota-stock">
+      El alta y el stock inicial son dos operaciones distintas: primero se crea
+      el producto y despues se registra la entrada.
+    </p>
+
+    <p class="error-modal" id="error-producto" hidden></p>
+
+    <footer class="modal__acciones">
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn btn--primary" id="btn-guardar">Guardar</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="modal-stock" class="modal">
+  <form id="form-stock" method="dialog">
+    <h2 id="titulo-stock">Registrar movimiento</h2>
+    <p class="muted" id="stock-producto"></p>
+
+    <div class="campo">
+      <label for="s-cantidad">Cantidad <span class="req">*</span></label>
+      <input id="s-cantidad" type="number" min="1" value="1" required>
+      <p class="ayuda" id="ayuda-stock"></p>
+    </div>
+
+    <p class="error-modal" id="error-stock" hidden></p>
+
+    <footer class="modal__acciones">
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn btn--primary" id="btn-confirmar-stock">Registrar</button>
+    </footer>
+  </form>
+</dialog>
+
+<div id="avisos" class="avisos" aria-live="polite"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -8,6 +8,30 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_store
 from app.store.memory_store import InMemoryStore
 
+#: Campos que devuelve la API para un producto. Los cinco primeros son los
+#: que exige el Req 2.7; las fechas se agregaron para la interfaz.
+PRODUCT_FIELDS = {
+    "product_id",
+    "name",
+    "description",
+    "price",
+    "stock",
+    "created_at",
+    "updated_at",
+}
+
+#: Campos de un asiento del historial de movimientos.
+MOVEMENT_FIELDS = {
+    "movement_id",
+    "product_id",
+    "product_name",
+    "type",
+    "quantity",
+    "stock_before",
+    "stock_after",
+    "created_at",
+}
+
 VALID_PRODUCT: Dict[str, Any] = {
     "name": "Cuaderno profesional",
     "description": "Cuaderno de 100 hojas cuadricula chica",

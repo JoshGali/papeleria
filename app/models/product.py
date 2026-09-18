@@ -50,13 +50,19 @@ class Product:
         return replace(self, updated_at=_now(), **changes)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Representacion publica del producto (Req 2.7)."""
+        """Representacion publica del producto (Req 2.7).
+
+        Incluye las marcas de tiempo para que una interfaz pueda mostrar
+        cuando se dio de alta y cuando se modifico por ultima vez.
+        """
         return {
             "product_id": self.product_id,
             "name": self.name,
             "description": self.description,
             "price": float(self.price),
             "stock": self.stock,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
     @property

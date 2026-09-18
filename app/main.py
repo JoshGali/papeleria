@@ -1,9 +1,12 @@
 """Punto de entrada de la API del Gestor de Inventario de la papeleria."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes_products import router as products_router
 from app.api.routes_stock import router as stock_router
@@ -13,12 +16,18 @@ from app.core.logging import configure_logging, get_logger
 from app.core.middleware import TimeoutAndErrorMiddleware
 from app.store.memory_store import store
 
+#: Carpeta de la interfaz web, resuelta respecto al paquete y no al
+#: directorio de trabajo: asi funciona sin importar desde donde se lance.
+STATIC_DIR = Path(__file__).parent / "static"
+
 DESCRIPTION = """
 API REST para administrar el inventario de la papeleria.
 
 Permite crear, consultar, actualizar y eliminar productos, registrar entradas
 y salidas de stock y consultar disponibilidad. La persistencia es en memoria
 (Requerimiento 10) y se pierde al detener el proceso.
+
+La interfaz web esta disponible en la raiz del servidor.
 """
 
 
@@ -53,6 +62,15 @@ def create_app() -> FastAPI:
 
     app.include_router(products_router)
     app.include_router(stock_router)
+
+    # Interfaz web servida por la propia aplicacion: al compartir origen con
+    # la API no hace falta configurar CORS ni levantar un segundo proceso.
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def interfaz() -> FileResponse:
+        """Entrega la pantalla de inventario."""
+        return FileResponse(STATIC_DIR / "index.html")
 
     @app.get("/health", tags=["Sistema"], summary="Estado del sistema")
     def health() -> Dict[str, Any]:

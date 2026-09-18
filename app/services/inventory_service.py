@@ -10,9 +10,12 @@ from typing import Any, Callable, Dict, List, Optional
 from app.core.config import (
     LOW_STOCK_THRESHOLD_MAX,
     LOW_STOCK_THRESHOLD_MIN,
+    MOVEMENTS_QUERY_DEFAULT_LIMIT,
+    MOVEMENTS_QUERY_MAX_LIMIT,
     STOCK_CAPACITY_MAX,
 )
 from app.core.errors import NotFoundError, ValidationError
+from app.models.movement import MovementType, StockMovement
 from app.models.product import Product
 from app.models.schemas import ProductCreate, ProductUpdate
 from app.models.validators import validate_product_id
@@ -129,7 +132,9 @@ class InventoryService:
             # Req 5.5: el nuevo nivel es el original mas la cantidad ingresada.
             return product.copy_with(stock=new_level)
 
-        return self._mutate(product_id, apply)
+        return self._mutate(
+            product_id, apply, movement_type=MovementType.ENTRY, quantity=quantity
+        )
 
     # -- Requerimiento 6: salidas de stock ---------------------------------
     def remove_stock(self, product_id: Any, quantity: int) -> Product:
@@ -144,7 +149,9 @@ class InventoryService:
                 )
             return product.copy_with(stock=product.stock - quantity)
 
-        return self._mutate(product_id, apply)
+        return self._mutate(
+            product_id, apply, movement_type=MovementType.EXIT, quantity=quantity
+        )
 
     # -- Requerimiento 8: disponibilidad -----------------------------------
     def list_available_products(self) -> List[Product]:
@@ -193,18 +200,63 @@ class InventoryService:
         return self._store.get(valid_id)
 
     def _mutate(
-        self, product_id: Any, mutator: Callable[[Product], Product]
+        self,
+        product_id: Any,
+        mutator: Callable[[Product], Product],
+        *,
+        movement_type: Optional[MovementType] = None,
+        quantity: int = 0,
     ) -> Product:
         """Ejecuta una modificacion atomica sobre un producto existente.
 
         No aplica el filtro de visibilidad del Req 2: las operaciones de
         escritura (Req 3, 5 y 6) deben alcanzar tambien a los productos recien
         creados, que aun tienen Stock_Level en cero.
+
+        Cuando se indica ``movement_type`` se registra ademas el asiento del
+        historial, dentro de la misma seccion critica que el cambio de stock.
         """
         valid_id = self._validate_id(product_id)
         self._store.ensure_ready()
+
+        def record(before: Product, after: Product) -> StockMovement:
+            assert movement_type is not None  # garantizado por el llamador
+            return StockMovement.from_change(
+                before=before,
+                after=after,
+                movement_type=movement_type,
+                quantity=quantity,
+            )
+
         # ``mutate`` lanza NotFoundError si el producto ya no existe.
-        return self._store.mutate(valid_id, mutator)
+        return self._store.mutate(
+            valid_id, mutator, on_applied=record if movement_type else None
+        )
+
+    # -- Historial de movimientos ------------------------------------------
+    def list_movements(
+        self, product_id: Optional[Any] = None, limit: Optional[Any] = None
+    ) -> List[StockMovement]:
+        """Consulta el historial, del movimiento mas reciente al mas antiguo."""
+        valid_id = self._validate_id(product_id) if product_id is not None else None
+        valid_limit = self._validate_limit(limit)
+        return self._store.list_movements(product_id=valid_id, limit=valid_limit)
+
+    def _validate_limit(self, limit: Optional[Any]) -> int:
+        if limit is None:
+            return MOVEMENTS_QUERY_DEFAULT_LIMIT
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValidationError(
+                "El parametro 'limit' debe ser un numero entero",
+                errors=[_field_error("limit", "Debe ser un numero entero")],
+            )
+        if not 1 <= limit <= MOVEMENTS_QUERY_MAX_LIMIT:
+            message = (
+                "El parametro 'limit' debe estar entre 1 y "
+                f"{MOVEMENTS_QUERY_MAX_LIMIT} movimientos"
+            )
+            raise ValidationError(message, errors=[_field_error("limit", message)])
+        return limit
 
 
 def _field_error(field: str, message: str) -> Dict[str, str]:

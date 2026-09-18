@@ -5,6 +5,7 @@ reglas del Requerimiento 7 sean unicas y compartidas por todas las
 operaciones.
 """
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, List, Optional
 
@@ -19,6 +20,7 @@ from app.core.config import (
     STOCK_EXIT_QUANTITY_MAX,
     STOCK_EXIT_QUANTITY_MIN,
 )
+from app.models.movement import StockMovement
 from app.models.product import Product
 from app.models.validators import (
     validate_description,
@@ -157,13 +159,20 @@ class StockExitRequest(BaseModel):
 
 
 class ProductResponse(BaseModel):
-    """Representacion publica de un producto (Req 2.7 y Req 8.6)."""
+    """Representacion publica de un producto (Req 2.7 y Req 8.6).
+
+    Ademas de los cinco campos que exige el Req 2.7 incluye ``created_at`` y
+    ``updated_at``, que la interfaz usa para mostrar el alta y la ultima
+    modificacion.
+    """
 
     product_id: str
     name: str
     description: str
     price: float
     stock: int
+    created_at: datetime
+    updated_at: datetime
 
     @classmethod
     def from_product(cls, product: Product) -> "ProductResponse":
@@ -173,6 +182,27 @@ class ProductResponse(BaseModel):
 def to_response_list(products: List[Product]) -> List[ProductResponse]:
     """Serializa una coleccion conservando el mismo formato JSON (Req 8.6)."""
     return [ProductResponse.from_product(product) for product in products]
+
+
+class MovementResponse(BaseModel):
+    """Asiento del historial de movimientos de stock."""
+
+    movement_id: str
+    product_id: str
+    product_name: str
+    type: str
+    quantity: int
+    stock_before: int
+    stock_after: int
+    created_at: datetime
+
+    @classmethod
+    def from_movement(cls, movement: StockMovement) -> "MovementResponse":
+        return cls(**movement.to_dict())
+
+
+def to_movement_list(movements: List[StockMovement]) -> List[MovementResponse]:
+    return [MovementResponse.from_movement(movement) for movement in movements]
 
 
 class ErrorDetail(BaseModel):

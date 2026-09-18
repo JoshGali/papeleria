@@ -5,9 +5,13 @@ import time
 from fastapi.testclient import TestClient
 
 from app.store.memory_store import InMemoryStore
-from helpers import create_product, create_product_with_stock, use_store
+from helpers import (
+    PRODUCT_FIELDS,
+    create_product,
+    create_product_with_stock,
+    use_store,
+)
 
-RESPONSE_FIELDS = {"product_id", "name", "description", "price", "stock"}
 
 
 def test_consultar_producto_existente_devuelve_datos_completos(
@@ -23,7 +27,7 @@ def test_consultar_producto_existente_devuelve_datos_completos(
     assert response.status_code == 200
     assert transcurrido < 2
     body = response.json()
-    assert set(body) == RESPONSE_FIELDS
+    assert set(body) == PRODUCT_FIELDS
     assert body["product_id"] == creado["product_id"]
     assert body["stock"] == 15
     assert body["price"] == 25.50
@@ -102,6 +106,6 @@ def test_formato_json_consistente_entre_listado_y_detalle(
     detalle = client.get(f"/products/{creado['product_id']}").json()
     listado = client.get("/products").json()
 
-    assert set(detalle) == RESPONSE_FIELDS
-    assert all(set(item) == RESPONSE_FIELDS for item in listado)
+    assert set(detalle) == PRODUCT_FIELDS
+    assert all(set(item) == PRODUCT_FIELDS for item in listado)
     assert listado[0] == detalle

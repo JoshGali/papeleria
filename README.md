@@ -69,9 +69,13 @@ El entorno esta activo cuando el prompt empieza con `(.venv)`. A partir de ahi
 curl http://127.0.0.1:8000/health
 ```
 
-- API: <http://127.0.0.1:8000>
+- **Interfaz web: <http://127.0.0.1:8000>**
 - Documentacion interactiva (Swagger): <http://127.0.0.1:8000/docs>
 - Esquema OpenAPI: <http://127.0.0.1:8000/openapi.json>
+
+La interfaz la sirve la propia aplicacion: no hay que instalar Node, ni
+compilar nada, ni levantar un segundo proceso. Al compartir origen con la API
+tampoco hace falta configurar CORS.
 
 ### Problemas frecuentes
 
@@ -87,7 +91,7 @@ curl http://127.0.0.1:8000/health
 ## Pruebas
 
 ```bash
-pytest            # 183 pruebas
+pytest            # 212 pruebas
 pytest -v         # detalle por criterio de aceptacion
 ```
 
@@ -113,7 +117,9 @@ Hypothesis.
 | `POST` | `/stock/exits` | Registra una salida de stock | 6 |
 | `GET` | `/stock/available` | Productos con stock mayor a cero | 8 |
 | `GET` | `/stock/low?threshold=N` | Productos con stock menor o igual a N | 8 |
+| `GET` | `/stock/movements` | Historial de entradas y salidas | - |
 | `GET` | `/health` | Estado del sistema y del almacen | - |
+| `GET` | `/` | Interfaz web del inventario | - |
 
 ### Ejemplos
 
@@ -149,7 +155,27 @@ curl 'http://127.0.0.1:8000/stock/low?threshold=10'
   "name": "Tijeras escolares",
   "description": "Punta roma de 5 pulgadas",
   "price": 32.5,
-  "stock": 40
+  "stock": 40,
+  "created_at": "2026-09-18T18:50:32.271700Z",
+  "updated_at": "2026-09-18T18:50:32.274422Z"
+}
+```
+
+Los cinco primeros campos son los que exige el Req 2.7; las fechas se agregaron
+para que la interfaz muestre el alta y la ultima modificacion.
+
+### Formato de movimiento
+
+```json
+{
+  "movement_id": "63e69d3c-6261-434c-9742-3d20cbe4867b",
+  "product_id": "784181ef-03a9-4f72-a72b-ff535580dbe1",
+  "product_name": "Tijeras escolares",
+  "type": "exit",
+  "quantity": 12,
+  "stock_before": 50,
+  "stock_after": 38,
+  "created_at": "2026-09-18T18:50:32.274422Z"
 }
 ```
 
@@ -184,6 +210,24 @@ curl 'http://127.0.0.1:8000/stock/low?threshold=10'
 | `quantity` (salida) | Entero de 1 a 999999999, nunca mayor al stock actual | 6.1, 6.3, 6.4 |
 | `threshold` | Entero obligatorio de 1 a 10000 | 8.2, 8.3, 8.4 |
 
+## Interfaz web
+
+En la raiz del servidor hay una pantalla de inventario en HTML, CSS y
+JavaScript sin dependencias: la sirve el propio FastAPI desde `app/static/`.
+
+- **Inventario:** tabla con buscador, filtro por estado (todos, con
+  existencias, stock bajo, agotados, sin precio), ordenamiento por columna y
+  umbral de stock bajo configurable. El filtrado ocurre en el navegador, asi
+  que escribir en el buscador no genera peticiones.
+- **Indicadores:** total de productos, con existencias, stock bajo, agotados y
+  valor del inventario.
+- **Operaciones:** alta, edicion, eliminacion y registro de entradas y salidas.
+- **Movimientos:** historial de entradas y salidas con su propio buscador y
+  filtro por tipo.
+
+La moneda esta fijada a pesos mexicanos en `app/static/app.js`; para cambiarla
+se edita la constante `dinero` (una linea).
+
 ## Estructura del proyecto
 
 ```
@@ -205,6 +249,8 @@ app/
     validators.py              Reglas del Requerimiento 7
   services/
     inventory_service.py       Reglas de negocio del inventario
+  models/movement.py           Asiento del historial de movimientos
+  static/                      Interfaz web (HTML, CSS y JavaScript)
   store/
     memory_store.py            In_Memory_Store con capacidad y lock
 tests/                         Una suite por requerimiento
@@ -261,6 +307,27 @@ requerimientos; se dejan explicitos para que puedan revisarse.
    los requerimientos exigen 400, por lo que un manejador global convierte
    todo `RequestValidationError` al formato del Req 9 con codigo 400.
 
+8. **El alta con stock inicial son dos operaciones.** El Req 1.6 obliga a que
+   todo producto nazca con Stock_Level en cero, asi que la interfaz crea el
+   producto y despues registra la entrada. Si la segunda falla, el producto ya
+   existe: la pantalla lo dice de forma explicita e invita a registrar el stock
+   con el boton "Entrada", en lugar de dejar un estado ambiguo.
+
+9. **El historial es inmutable y sobrevive al producto.** Un movimiento es un
+   hecho ocurrido: eliminar un producto no borra sus asientos, y cada asiento
+   guarda el nombre que tenia el articulo en ese momento para seguir siendo
+   legible. Un error se corrige con un movimiento en sentido contrario, no
+   reescribiendo el historial.
+
+10. **El asiento se escribe dentro del mismo lock que el stock.** El historial
+    y el Stock_Level cambian en la misma seccion critica
+    (`InMemoryStore.mutate`), de modo que no puede existir un movimiento sin su
+    cambio de stock ni al reves. Una operacion rechazada no deja asiento.
+
+11. **El historial tiene tope.** Se conservan los ultimos 50000 asientos en un
+    `deque`; al llenarse se descartan los mas antiguos para que la memoria no
+    crezca sin limite durante la ejecucion.
+
 ## Limitaciones conocidas
 
 - Los datos viven solo en memoria: al detener el proceso se pierde todo
@@ -269,4 +336,11 @@ requerimientos; se dejan explicitos para que puedan revisarse.
   cada proceso tendria su propio inventario. Es una consecuencia esperada de
   la fase en memoria y desaparece con DynamoDB.
 - La API no incluye autenticacion ni autorizacion; no estan en el alcance de
-  este documento de requerimientos.
+  este documento de requerimientos. En `127.0.0.1` es irrelevante, pero si la
+  pantalla se publica en la red de la tienda cualquiera podria modificar el
+  inventario.
+- El historial de movimientos tambien vive en memoria: se pierde al detener el
+  proceso, igual que los productos.
+- La interfaz carga el catalogo completo y filtra en el navegador. Con unos
+  cientos de productos es instantaneo; cerca del maximo de 10000 convendria
+  paginar del lado del servidor.

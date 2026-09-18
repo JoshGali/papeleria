@@ -54,6 +54,14 @@ LOW_STOCK_THRESHOLD_MAX: Final[int] = 10000
 # Req 10.1 / 10.3: capacidad maxima del In_Memory_Store.
 STORE_MAX_PRODUCTS: Final[int] = 10000
 
+# --- Historial de movimientos ---------------------------------------------
+#: Asientos conservados en memoria. Al llenarse se descartan los mas antiguos,
+#: de modo que el historial no crezca sin limite durante la ejecucion.
+MOVEMENTS_MAX_ENTRIES: Final[int] = 50000
+#: Tope del parametro 'limit' al consultar el historial.
+MOVEMENTS_QUERY_MAX_LIMIT: Final[int] = 1000
+MOVEMENTS_QUERY_DEFAULT_LIMIT: Final[int] = 100
+
 # --- Errores y tiempos -----------------------------------------------------
 # Req 9.1-9.3: el mensaje de error debe medir entre 10 y 200 caracteres.
 ERROR_MESSAGE_MIN_LENGTH: Final[int] = 10
