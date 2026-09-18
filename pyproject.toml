@@ -1,0 +1,15 @@
+[project]
+name = "papeleria-inventario"
+version = "1.0.0"
+description = "Gestor de inventario de la papeleria (FastAPI + almacenamiento en memoria)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.hypothesis]
+deadline = 1000
