@@ -87,7 +87,7 @@ curl http://127.0.0.1:8000/health
 ## Pruebas
 
 ```bash
-pytest            # 173 pruebas
+pytest            # 183 pruebas
 pytest -v         # detalle por criterio de aceptacion
 ```
 
@@ -105,6 +105,7 @@ Hypothesis.
 |---|---|---|---|
 | `POST` | `/products` | Crea un producto (stock inicial 0) | 1 |
 | `GET` | `/products` | Lista los productos consultables | 2 |
+| `GET` | `/products?include_unavailable=true` | Vista de administracion: incluye agotados y sin precio | - |
 | `GET` | `/products/{product_id}` | Consulta un producto | 2 |
 | `PATCH` / `PUT` | `/products/{product_id}` | Actualiza nombre, descripcion o precio | 3 |
 | `DELETE` | `/products/{product_id}` | Elimina un producto | 4 |
@@ -234,8 +235,12 @@ requerimientos; se dejan explicitos para que puedan revisarse.
    Req 2. Las operaciones de actualizacion, eliminacion y movimientos de stock
    si alcanzan a esos productos: de lo contrario un producto recien creado
    (stock 0) seria imposible de surtir. Como consecuencia, un producto nuevo
-   no aparece en `GET /products` hasta que recibe su primera entrada de stock;
-   mientras tanto puede verse en `GET /stock/low`.
+   no aparece en `GET /products` hasta que recibe su primera entrada de stock.
+
+   Para que una pantalla de administracion pueda verlos, `GET /products`
+   acepta `?include_unavailable=true`, que levanta el filtro. Es una extension
+   fuera del documento de requerimientos: el comportamiento por defecto sigue
+   siendo exactamente el del Req 2.4 y el formato de la respuesta no cambia.
 
 4. **Valores significativos.** El Req 1.3 pide validar que los campos
    presentes tengan valores significativos, por lo que un `name` o una

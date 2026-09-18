@@ -2,7 +2,7 @@
 
 from typing import List
 
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from app.api.dependencies import get_inventory_service
 from app.models.schemas import (
@@ -55,14 +55,26 @@ def create_product(
     },
 )
 def list_products(
+    include_unavailable: bool = Query(
+        False,
+        description=(
+            "Vista de administracion: incluye tambien los productos agotados "
+            "o sin precio asignado, que el filtro por defecto oculta"
+        ),
+    ),
     service: InventoryService = Depends(get_inventory_service),
 ) -> List[ProductResponse]:
     """Req 2.4-2.6: lista los productos con stock y precio distintos de cero.
 
     Con el almacen vacio devuelve un arreglo vacio (Req 2.5); si el almacen no
     esta inicializado responde 503 (Req 2.6).
+
+    ``include_unavailable=true`` levanta el filtro del Req 2.4 para la pantalla
+    de administracion. El comportamiento por defecto no cambia.
     """
-    return to_response_list(service.list_products())
+    return to_response_list(
+        service.list_products(include_unavailable=include_unavailable)
+    )
 
 
 @router.get(

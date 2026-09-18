@@ -60,9 +60,19 @@ class InventoryService:
             )
         return product
 
-    def list_products(self) -> List[Product]:
-        """Req 2.4: lista unicamente los productos con stock y precio no nulos."""
-        return [p for p in self._store.list_all() if p.is_visible]
+    def list_products(self, *, include_unavailable: bool = False) -> List[Product]:
+        """Lista los productos del catalogo.
+
+        Por defecto aplica el filtro del Req 2.4 y devuelve solo los productos
+        con stock y precio distintos de cero. ``include_unavailable`` desactiva
+        ese filtro para la vista de administracion, que necesita ver tambien
+        los articulos agotados o sin precio asignado: de otro modo un producto
+        recien creado (Stock_Level en cero) seria invisible hasta surtirlo.
+        """
+        products = self._store.list_all()
+        if include_unavailable:
+            return products
+        return [p for p in products if p.is_visible]
 
     # -- Requerimiento 3: actualizar ---------------------------------------
     def update_product(self, product_id: Any, payload: ProductUpdate) -> Product:
