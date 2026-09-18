@@ -8,7 +8,23 @@ La persistencia es **en memoria** (Requerimiento 10) y esta encapsulada tras
 una interfaz propia para que la migracion futura a DynamoDB solo tenga que
 sustituir esa capa.
 
+## Requisitos
+
+- **Python 3.10 o superior**; se recomienda **3.11 o 3.12**. Las versiones de
+  `requirements.txt` estan fijadas y en Python 3.13 no existen paquetes
+  precompilados de `pydantic-core`: pip intentaria compilarlos desde el codigo
+  fuente y pediria un compilador de Rust.
+
+Para comprobar la version instalada:
+
+```bash
+python3 --version    # Linux / macOS
+py --version         # Windows
+```
+
 ## Puesta en marcha
+
+### Linux / macOS
 
 ```bash
 python3 -m venv .venv
@@ -18,9 +34,55 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+### Windows
+
+En Windows no existe el comando `python3`: se usa el lanzador `py`. Si al
+escribir `python3` se abre la Microsoft Store, es ese atajo el que responde,
+no Python.
+
+**PowerShell**
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload
+```
+
+**CMD**
+
+```cmd
+py -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload
+```
+
+El entorno esta activo cuando el prompt empieza con `(.venv)`. A partir de ahi
+`python` y `pip` apuntan al entorno del proyecto en cualquier sistema.
+
+### Comprobacion
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
 - API: <http://127.0.0.1:8000>
 - Documentacion interactiva (Swagger): <http://127.0.0.1:8000/docs>
 - Esquema OpenAPI: <http://127.0.0.1:8000/openapi.json>
+
+### Problemas frecuentes
+
+| Sintoma | Causa y solucion |
+|---|---|
+| `python3` abre la Microsoft Store | Windows no tiene ese comando: usa `py`. Si `py --version` tambien falla, instala Python desde <https://www.python.org/downloads/> marcando **"Add python.exe to PATH"** y reabre la terminal. |
+| `la ejecucion de scripts esta deshabilitada en este sistema` | Politica de PowerShell. Ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y vuelve a activar el entorno. |
+| `uvicorn: no se reconoce como un comando` | El entorno virtual no esta activo (falta el `(.venv)` en el prompt) o falto `pip install -r requirements.txt`. Alternativa: `python -m uvicorn app.main:app --reload`. |
+| `error: Microsoft Visual C++ 14.0 or greater is required` o un error de Rust al instalar | Version de Python demasiado nueva para las dependencias fijadas. Crea el entorno con Python 3.11 o 3.12. |
+| `Address already in use` / `error while attempting to bind` | El puerto 8000 esta ocupado. Usa otro: `uvicorn app.main:app --reload --port 8001`. |
+| `GET /products` devuelve `[]` tras crear un producto | Comportamiento esperado: un producto nuevo tiene stock 0 y se filtra (Req 2.3). Registra una entrada en `/stock/entries` y aparecera. |
 
 ## Pruebas
 
@@ -28,6 +90,9 @@ uvicorn app.main:app --reload
 pytest            # 173 pruebas
 pytest -v         # detalle por criterio de aceptacion
 ```
+
+Con el entorno virtual activo el comando funciona igual en Linux, macOS y
+Windows. Si la terminal no encuentra el ejecutable, usa `python -m pytest`.
 
 La suite esta organizada por requerimiento (`tests/test_req01_create.py`,
 `tests/test_req02_query.py`, ...), mas pruebas de concurrencia, pruebas
@@ -50,6 +115,10 @@ Hypothesis.
 | `GET` | `/health` | Estado del sistema y del almacen | - |
 
 ### Ejemplos
+
+> En **PowerShell**, `curl` es un alias de `Invoke-WebRequest` y no entiende
+> estas opciones: escribe `curl.exe` (incluido en Windows 10 y posteriores) o
+> usa la documentacion interactiva en `/docs`, que es mas comoda.
 
 ```bash
 # Crear un producto
